@@ -1,0 +1,84 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+contract PenguNFT is ERC721, ERC721URIStorage, Ownable {
+    uint256 private _tokenIdCounter;
+    uint256 public constant MAX_SUPPLY = 8888; // Same as Pudgy Penguins
+    string private _baseTokenURI;
+
+    constructor(string memory baseURI) ERC721("PenguNFT", "PENGU") Ownable(msg.sender) {
+        _baseTokenURI = baseURI; // e.g., "ipfs://<your_CID>/"
+        _tokenIdCounter = 0;
+    }
+
+    // Mint a new NFT
+    function mint(address to) public onlyOwner returns (uint256) {
+        require(_tokenIdCounter < MAX_SUPPLY, "Max supply reached");
+        _tokenIdCounter++;
+        uint256 tokenId = _tokenIdCounter;
+        _safeMint(to, tokenId);
+        _setTokenURI(tokenId, string(abi.encodePacked(_baseTokenURI, uint2str(tokenId), ".json")));
+        return tokenId;
+    }
+
+    // Batch minting for efficiency
+    function batchMint(address to, uint256 amount) public onlyOwner {
+        require(_tokenIdCounter + amount <= MAX_SUPPLY, "Exceeds max supply");
+        for (uint256 i = 0; i < amount; i++) {
+            mint(to);
+        }
+    }
+
+    // Override baseURI for metadata
+    function _baseURI() internal view override returns (string memory) {
+        return _baseTokenURI;
+    }
+
+    // Update baseURI (optional, for flexibility)
+    function setBaseURI(string memory newBaseURI) public onlyOwner {
+        _baseTokenURI = newBaseURI;
+    }
+
+    // Convert uint to string for tokenURI concatenation
+    function uint2str(uint256 _i) internal pure returns (string memory) {
+        if (_i == 0) return "0";
+        uint256 j = _i;
+        uint256 length;
+        while (j != 0) {
+            length++;
+            j /= 10;
+        }
+        bytes memory bstr = new bytes(length);
+        uint256 k = length;
+        j = _i;
+        while (j != 0) {
+            bstr[--k] = bytes1(uint8(48 + j % 10));
+            j /= 10;
+        }
+        return string(bstr);
+    }
+
+    // Required overrides for ERC721URIStorage
+    function tokenURI(uint256 tokenId) public view override(ERC721, ERC721URIStorage) returns (string memory) {
+        return super.tokenURI(tokenId);
+    }
+
+    function supportsInterface(bytes4 interfaceId) public view override(ERC721, ERC721URIStorage) returns (bool) {
+        return super.supportsInterface(interfaceId);
+    }
+}
+
+async function main() {
+  const PenguNFT = await ethers.getContractFactory("PenguNFT");
+  const penguNFT = await PenguNFT.deploy("ipfs://<your_CID>/");
+  await penguNFT.deployed();
+  console.log("PenguNFT deployed to:", penguNFT.address);
+}
+main().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});
